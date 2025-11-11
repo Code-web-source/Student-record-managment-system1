@@ -1,0 +1,436 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
+#include <iomanip>
+using namespace std;
+
+// ===============================
+// Base Class: Person
+// ===============================
+class Person {
+public:
+    string name, phone, email, address;
+    int age;
+
+    void inputPerson() {
+        cout << "Enter Name           : ";
+        getline(cin, name);
+
+        cout << "Enter Age            : ";
+        cin >> age;
+        cin.ignore();
+
+        cout << "Enter Phone Number   : ";
+        getline(cin, phone);
+
+        cout << "Enter Email          : ";
+        getline(cin, email);
+
+        cout << "Enter Address        : ";
+        getline(cin, address);
+    }
+
+    void showPerson() {
+        cout << "Name       : " << name << endl;
+        cout << "Age        : " << age << endl;
+        cout << "Phone      : " << phone << endl;
+        cout << "Email      : " << email << endl;
+        cout << "Address    : " << address << endl;
+    }
+};
+
+// ===============================
+// Derived Class: Student
+// ===============================
+class Student : public Person {
+public:
+    int roll;
+    float marks10, marks12, cgpa;
+    string branch, course;
+    char grade;
+
+    // Grade calculator
+    void setGrade() {
+        if (cgpa >= 9.0) grade = 'A';
+        else if (cgpa >= 8.0) grade = 'B';
+        else if (cgpa >= 7.0) grade = 'C';
+        else if (cgpa >= 6.0) grade = 'D';
+        else grade = 'F';
+    }
+
+    // Input student data
+    void input() {
+        cout << "\n----------------------------------";
+        cout << "\n       ENTER STUDENT DETAILS";
+        cout << "\n----------------------------------\n";
+
+        cout << "Enter Roll No        : ";
+        cin >> roll;
+        cin.ignore();
+
+        inputPerson();
+
+        cout << "Enter 10th Marks (%) : ";
+        cin >> marks10;
+
+        cout << "Enter 12th Marks (%) : ";
+        cin >> marks12;
+
+        cout << "Enter CGPA           : ";
+        cin >> cgpa;
+        cin.ignore();
+
+        cout << "Enter Course         : ";
+        getline(cin, course);
+
+        cout << "Enter Branch         : ";
+        getline(cin, branch);
+
+        setGrade();
+    }
+
+    // Display student data
+    void show() {
+        cout << "\n----------------------------------";
+        cout << "\n       STUDENT INFORMATION";
+        cout << "\n----------------------------------\n";
+        cout << "Roll No    : " << roll << endl;
+        showPerson();
+        cout << "10th Marks : " << marks10 << "%" << endl;
+        cout << "12th Marks : " << marks12 << "%" << endl;
+        cout << "CGPA       : " << cgpa << endl;
+        cout << "Course     : " << course << endl;
+        cout << "Branch     : " << branch << endl;
+        cout << "Grade      : " << grade << endl;
+    }
+
+    // Parse a line from file
+    bool parseLine(string line) {
+        if (line.empty()) return false;
+
+        stringstream ss(line);
+        string token;
+        int field = 0;
+
+        try {
+            while (getline(ss, token, '|')) {
+                if (token.empty()) token = "0";
+
+                switch (field) {
+                    case 0: roll = stoi(token); break;
+                    case 1: name = token; break;
+                    case 2: age = stoi(token); break;
+                    case 3: phone = token; break;
+                    case 4: email = token; break;
+                    case 5: address = token; break;
+                    case 6: marks10 = stof(token); break;
+                    case 7: marks12 = stof(token); break;
+                    case 8: cgpa = stof(token); break;
+                    case 9: course = token; break;
+                    case 10: branch = token; break;
+                    case 11: grade = token.empty() ? '-' : token[0]; break;
+                }
+                field++;
+            }
+        } catch (...) {
+            return false;
+        }
+
+        return field >= 12;
+    }
+
+    // Check if roll number already exists
+    bool rollExists(int r) {
+        ifstream fin("students.txt");
+        if (!fin) return false;
+
+        string line;
+        while (getline(fin, line)) {
+            if (line.empty()) continue;
+            
+            size_t pos = line.find('|');
+            if (pos != string::npos) {
+                int fileRoll = stoi(line.substr(0, pos));
+                if (fileRoll == r) {
+                    fin.close();
+                    return true;
+                }
+            }
+        }
+        fin.close();
+        return false;
+    }
+
+    // Save record to file
+    void saveToFile() {
+        if (rollExists(roll)) {
+            cout << "\nError: Roll No " << roll << " already exists!\n";
+            cout << "Please use Update option to modify existing record.\n";
+            return;
+        }
+
+        ofstream fout("students.txt", ios::app);
+        if (fout.is_open()) {
+            fout << roll << "|" << name << "|" << age << "|" << phone << "|" << email << "|" << address << "|"
+                 << marks10 << "|" << marks12 << "|" << cgpa << "|" << course << "|" << branch << "|" << grade << "\n";
+            fout.close();
+            cout << "\nRecord Saved Successfully!\n";
+        } else {
+            cout << "\nError saving file!\n";
+        }
+    }
+
+    // View all records with proper alignment
+    void viewAll() {
+        ifstream fin("students.txt");
+        if (!fin) {
+            cout << "\nNo records found!\n";
+            return;
+        }
+
+        string line;
+        int count = 0;
+        
+        cout << "\n========================================================================================================";
+        cout << "\n                                      ALL STUDENT RECORDS";
+        cout << "\n========================================================================================================\n";
+        cout << left << setw(6) << "Roll" << " | " 
+             << setw(20) << "Name" << " | " 
+             << setw(4) << "Age" << " | " 
+             << setw(12) << "Phone" << " | " 
+             << setw(25) << "Email" << " | " 
+             << setw(20) << "Address" << endl;
+        cout << "--------------------------------------------------------------------------------------------------------\n";
+        
+        while (getline(fin, line)) {
+            if (line.empty()) continue;
+            
+            Student temp;
+            if (temp.parseLine(line)) {
+                // Truncate strings if they're too long
+                string displayName = temp.name.length() > 20 ? temp.name.substr(0, 17) + "..." : temp.name;
+                string displayEmail = temp.email.length() > 25 ? temp.email.substr(0, 22) + "..." : temp.email;
+                string displayAddress = temp.address.length() > 20 ? temp.address.substr(0, 17) + "..." : temp.address;
+                
+                cout << left << setw(6) << temp.roll << " | " 
+                     << setw(20) << displayName << " | " 
+                     << setw(4) << temp.age << " | " 
+                     << setw(12) << temp.phone << " | " 
+                     << setw(25) << displayEmail << " | " 
+                     << setw(20) << displayAddress << endl;
+                count++;
+            }
+        }
+        
+        if (count == 0) {
+            cout << "\nNo records found!\n";
+        } else {
+            cout << "--------------------------------------------------------------------------------------------------------\n";
+            cout << "Total Records: " << count << endl;
+        }
+        
+        fin.close();
+    }
+
+    // Search record
+    void search(int r) {
+        ifstream fin("students.txt");
+        if (!fin) {
+            cout << "\nFile not found!\n";
+            return;
+        }
+
+        string line;
+        bool found = false;
+        while (getline(fin, line)) {
+            if (line.empty()) continue;
+            
+            size_t pos = line.find('|');
+            if (pos != string::npos) {
+                int fileRoll = stoi(line.substr(0, pos));
+                if (fileRoll == r) {
+                    Student temp;
+                    if (temp.parseLine(line)) {
+                        cout << "\nRecord Found!\n";
+                        temp.show();
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!found)
+            cout << "\nRecord not found!\n";
+        fin.close();
+    }
+
+    // Delete record
+    void deleteRecord(int r) {
+        ifstream fin("students.txt");
+        if (!fin) {
+            cout << "\nFile not found!\n";
+            return;
+        }
+
+        ofstream temp("temp.txt");
+        string line;
+        bool found = false;
+
+        while (getline(fin, line)) {
+            if (line.empty()) continue;
+            
+            size_t pos = line.find('|');
+            if (pos != string::npos) {
+                int fileRoll = stoi(line.substr(0, pos));
+                if (fileRoll != r) {
+                    temp << line << "\n";
+                } else {
+                    found = true;
+                }
+            }
+        }
+
+        fin.close();
+        temp.close();
+
+        remove("students.txt");
+        rename("temp.txt", "students.txt");
+
+        if (found)
+            cout << "\nRecord Deleted Successfully!\n";
+        else
+            cout << "\nRecord Not Found!\n";
+    }
+
+    // Update record
+    void updateRecord(int r) {
+        ifstream fin("students.txt");
+        if (!fin) {
+            cout << "\nFile not found!\n";
+            return;
+        }
+
+        ofstream temp("temp.txt");
+        string line;
+        bool found = false;
+
+        while (getline(fin, line)) {
+            if (line.empty()) continue;
+            
+            size_t pos = line.find('|');
+            if (pos != string::npos) {
+                int fileRoll = stoi(line.substr(0, pos));
+                if (fileRoll == r) {
+                    if (!found) {
+                        cout << "\nCurrent Record:\n";
+                        Student current;
+                        if (current.parseLine(line)) {
+                            current.show();
+                        }
+                        
+                        cout << "\nEnter New Details for Roll No " << r << ":\n";
+                        input();
+                        temp << roll << "|" << name << "|" << age << "|" << phone << "|" << email << "|" << address << "|"
+                             << marks10 << "|" << marks12 << "|" << cgpa << "|" << course << "|" << branch << "|" << grade << "\n";
+                        found = true;
+                    }
+                } else {
+                    temp << line << "\n";
+                }
+            }
+        }
+
+        fin.close();
+        temp.close();
+
+        remove("students.txt");
+        rename("temp.txt", "students.txt");
+
+        if (found)
+            cout << "\nRecord Updated Successfully!\n";
+        else
+            cout << "\nRecord Not Found!\n";
+    }
+};
+
+// ===============================
+// Main Function
+// ===============================
+int main() {
+    Student s;
+    int choice, rno;
+
+    cout << "====================================\n";
+    cout << "  STUDENT RECORD MANAGEMENT SYSTEM  \n";
+    cout << "====================================\n";
+
+    do {
+        cout << "\n1. Add New Student";
+        cout << "\n2. View All Students";
+        cout << "\n3. Search Student";
+        cout << "\n4. Update Student";
+        cout << "\n5. Delete Student";
+        cout << "\n6. Exit";
+        cout << "\n------------------------------------";
+        cout << "\nEnter choice: ";
+        
+        if (!(cin >> choice)) {
+            cin.clear();
+            cin.ignore(10000, '\n');
+            cout << "\nInvalid input! Please enter a number.\n";
+            continue;
+        }
+        cin.ignore();
+
+        switch (choice) {
+            case 1:
+                s.input();
+                s.saveToFile();
+                break;
+            case 2:
+                s.viewAll();
+                break;
+            case 3:
+                cout << "\nEnter Roll No to Search: ";
+                if (cin >> rno) {
+                    cin.ignore();
+                    s.search(rno);
+                } else {
+                    cin.clear();
+                    cin.ignore(10000, '\n');
+                    cout << "\nInvalid roll number!\n";
+                }
+                break;
+            case 4:
+                cout << "\nEnter Roll No to Update: ";
+                if (cin >> rno) {
+                    cin.ignore();
+                    s.updateRecord(rno);
+                } else {
+                    cin.clear();
+                    cin.ignore(10000, '\n');
+                    cout << "\nInvalid roll number!\n";
+                }
+                break;
+            case 5:
+                cout << "\nEnter Roll No to Delete: ";
+                if (cin >> rno) {
+                    cin.ignore();
+                    s.deleteRecord(rno);
+                } else {
+                    cin.clear();
+                    cin.ignore(10000, '\n');
+                    cout << "\nInvalid roll number!\n";
+                }
+                break;
+            case 6:
+                cout << "\nExiting... Thank You!\n";
+                break;
+            default:
+                cout << "\nInvalid Choice! Try Again.\n";
+        }
+    } while (choice != 6);
+
+    return 0;
+}
